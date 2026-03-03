@@ -1,0 +1,25 @@
+# Dependency directories
+/vendor/
+/composer_cache/
+
+# Environment variables
+.env
+
+# Temporary files
+/tmp/
+*.log
+
+# Uploads and user-generated content
+/uploads/
+/images/sign/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
+
+# PHP specific
+php.ini

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Add Text to PDF</title>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@400;700&display=swap');
+        #pdf-canvas {
+            border: 1px solid black;
+            width: 210mm; /* กำหนดความกว้างเท่ากับ A4 */
+            height: 297mm; /* กำหนดความสูงเท่ากับ A4 */
+            font-family: 'Sarabun', sans-serif; /* ใช้ฟอนต์ภาษาไทย */
+        }
+        #preview-text, #preview-sign, #preview-date {
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.7);
+            border: 1px solid black;
+            padding: 2px;
+            display: none;
+            font-family: 'Sarabun', sans-serif; /* ใช้ฟอนต์ภาษาไทย */
+            white-space: pre-wrap; /* รักษาช่องว่างและการขึ้นบรรทัดใหม่ */
+        }
+        #preview-sign {
+            width: 50px;
+            height: 50px;
+            background-size: contain;
+            background-repeat: no-repeat;
+        }
+    </style>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.5.207/pdf.min.js"></script>
+</head>
+<body>
+    <form id="text-form">
+        <label for="input-text">Enter your text:</label>
+        <textarea id="input-text" name="input-text" rows="4" cols="50" required></textarea>
+        <br>
+        <label for="x-pos">X Position:</label>
+        <input type="text" id="x-pos" name="x-pos" readonly>
+        <br>
+        <label for="y-pos">Y Position:</label>
+        <input type="text" id="y-pos" name="y-pos" readonly>
+        <br>
+        <label for="input-date">Select Date:</label>
+        <input type="date" id="input-date" name="input-date" required>
+        <br>
+        <label for="input-image">Select Image:</label>
+        <select id="input-image" name="input-image">
+            <option value="sign1.png">sign1.png</option>
+            <option value="sign2.png">sign2.png</option>
+            <option value="sign3.png">sign3.png</option>
+        </select>
+        <br>
+        <input type="submit" value="Generate PDF">
+    </form>
+
+    <div id="pdf-container" style="position: relative;">
+        <canvas id="pdf-canvas"></canvas>
+        <div id="preview-text"></div>
+        <div id="preview-sign"></div>
+        <div id="preview-date"></div>
+    </div>
+
+    <div>
+        <button id="prev-page">Previous Page</button>
+        <button id="next-page">Next Page</button>
+        <span>Page: <span id="page-info"></span></span>
+    </div>
+
+    <script>
+        let pdfDoc = null,
+            pageNum = 1,
+            pageCount = 0,
+            canvas = document.getElementById('pdf-canvas'),
+            ctx = canvas.getContext('2d'),
+            previewText = document.getElementById('preview-text'),
+            previewSign = document.getElementById('preview-sign'),
+            previewDate = document.getElementById('preview-date');
+
+        function renderPage(num) {
+            pdfDoc.getPage(num).then(function(page) {
+                let viewport = page.getViewport({ scale: 2 });
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+
+                let renderContext = {
+                    canvasContext: ctx,
+                    viewport: viewport
+                };
+                page.render(renderContext);
+                document.getElementById('page-info').textContent = `${num} / ${pageCount}`;
+            });
+        }
+
+        document.getElementById('text-form').addEventListener('submit', function(event) {
+            event.preventDefault();
+            let inputText = document.getElementById('input-text').value;
+            let xPos = document.getElementById('x-pos').value;
+            let yPos = document.getElementById('y-pos').value;
+            let inputDate = document.getElementById('input-date').value;
+            let inputImage = document.getElementById('input-image').value;
+
+            console.log(`Submitting text: ${inputText}, date: ${inputDate}, image: ${inputImage} at position: ${xPos}, ${yPos} on page: ${pageNum}`);
+
+            let formData = new FormData();
+            formData.append('page-num', pageNum);
+            formData.append('input-text', inputText);
+            formData.append('x-pos', xPos);
+            formData.append('y-pos', yPos);
+            formData.append('input-date', inputDate);
+            formData.append('input-image', inputImage);
+
+            fetch('generate_pdf.php', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.blob())
+            .then(blob => {
+                let url = window.URL.createObjectURL(blob);
+                window.open(url);
+            })
+            .catch(error => console.error('Error:', error));
+        });
+
+        function loadPDF(url) {
+            pdfjsLib.getDocument(url).promise.then(function(pdfDoc_) {
+                pdfDoc = pdfDoc_;
+                pageCount = pdfDoc.numPages;
+                renderPage(pageNum);
+            });
+        }
+
+        loadPDF('test.pdf');
+
+        canvas.addEventListener('click', function(event) {
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+
+            console.log(`Clicked at: ${x}, ${y}`);
+
+            document.getElementById('x-pos').value = x;
+            document.getElementById('y-pos').value = y;
+
+            let inputText = document.getElementById('input-text').value;
+            let inputDate = document.getElementById('input-date').value;
+            let inputImage = document.getElementById('input-image').value;
+
+            if (inputText) {
+                previewText.style.left = `${x}px`;
+                previewText.style.top = `${y}px`;
+                previewText.textContent = inputText;
+                previewText.style.display = 'block';
+            }
+
+            if (inputImage) {
+                previewSign.style.left = `${x}px`;
+                previewSign.style.top = `${y}px`;
+                previewSign.style.backgroundImage = `url('${inputImage}')`;
+                previewSign.style.display = 'block';
+            }
+
+            if (inputDate) {
+                previewDate.style.left = `${x}px`;
+                previewDate.style.top = `${y + 50}px`;
+                previewDate.textContent = inputDate;
+                previewDate.style.display = 'block';
+            }
+        });
+
+        document.getElementById('prev-page').addEventListener('click', function() {
+            if (pageNum <= 1) {
+                return;
+            }
+            pageNum--;
+            renderPage(pageNum);
+        });
+
+        document.getElementById('next-page').addEventListener('click', function() {
+            if (pageNum >= pageCount) {
+                return;
+            }
+            pageNum++;
+            renderPage(pageNum);
+        });
+    </script>
+</body>
+</html>
