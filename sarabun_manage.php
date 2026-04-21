@@ -21,21 +21,24 @@ include 'edoc-db.php';
                     <thead class="bg-slate-800 text-white text-sm">
                         <tr>
                             <th class="px-4 py-3 font-medium rounded-tl-lg">เลขที่</th>
-                            <th class="px-4 py-3 font-medium">ประเภท</th>
-                            <th class="px-4 py-3 font-medium">วันที่รับเข้า</th>
-                            <th class="px-4 py-3 font-medium">จาก</th>
-                            <th class="px-4 py-3 font-medium">เรื่อง</th>
-                            <th class="px-4 py-3 font-medium">ไฟล์หนังสือ</th>
-                            <th class="px-4 py-3 font-medium text-center rounded-tr-lg">ดำเนินการลงนาม</th>
+                            <th class="px-4 py-3 text-center">ประเภท</th>
+                            <th class="px-4 py-3 text-center">วันที่</th>
+                            <th class="px-4 py-3">จาก</th>
+                            <th class="px-4 py-3">เรื่อง</th>
+                            <th class="px-4 py-3">ไฟล์</th>
+                            <th class="px-4 py-3 text-center">สถานะ</th>
+                            <th class="px-4 py-3 text-center">ดำเนินการลงนาม</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100 text-gray-700">
                         <?php
                         $inst_id = $_SESSION['inst_id'];
-                        $sql = "SELECT d.*, dt.doc_type_name, u.fullname
+                        $sql = "SELECT d.*, dt.doc_type_name, u.fullname, sd.sign_sarabun, sd.doc_status, sd.dep_id as target_dep, dep.dep_name
                                 FROM documents d
                                 JOIN document_types dt ON d.doc_type_id = dt.doc_type_id
                                 JOIN user u ON d.doc_uploader = u.user_id
+                                LEFT JOIN sign_doc sd ON d.doc_id = sd.doc_id
+                                LEFT JOIN department dep ON sd.dep_id = dep.dep_id
                                 WHERE d.inst_id = ?
                                 ORDER BY d.doc_upload_date DESC";
                         $stmt = $conn->prepare($sql);
@@ -70,34 +73,57 @@ include 'edoc-db.php';
                             }
                             echo "</td>";
 
-                            echo "<td class='px-4 py-3 text-center'>";
-                            if ($fileResult->num_rows > 0) {
-                                $fileResult->data_seek(0);
-                                $c = 1;
-                                while ($f = $fileResult->fetch_assoc()) {
-                                    $file_id = $f['file_id'];
-                                    $statusSql = "SELECT sign_sarabun, doc_status FROM sign_doc WHERE doc_id = ?";
-                                    $statusStmt = $conn->prepare($statusSql);
-                                    $statusStmt->bind_param('i', $doc_id);
-                                    $statusStmt->execute();
-                                    $statusResult = $statusStmt->get_result();
-                                    $isApproved = false;
-                                    if ($statusResult->num_rows > 0) {
-                                        $s = $statusResult->fetch_assoc();
-                                        if ($s['doc_status'] == 'approve') $isApproved = true;
-                                    }
+                             echo "<td class='px-4 py-3 text-center'>";
+                             $sign_sarabun = $row['sign_sarabun'] ?? 'pending';
+                             $dep_name_hint = !empty($row['dep_name']) ? " (" . htmlspecialchars($row['dep_name']) . ")" : "";
+                             
+                             if ($sign_sarabun == 'approve') {
+                                 echo "<span class='inline-flex items-center gap-1 px-3 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-bold border border-emerald-200'><i class='bi bi-check-circle-fill'></i> เกษียณแล้ว{$dep_name_hint}</span>";
+                             } elseif ($sign_sarabun == 'stamp_done') {
+                                 echo "<span class='inline-flex items-center gap-1 px-3 py-1 bg-amber-100 text-amber-700 rounded-full text-xs font-bold border border-amber-200'><i class='bi bi-info-circle-fill'></i> ลงรับแล้ว{$dep_name_hint}</span>";
+                             } else {
+                                 echo "<span class='inline-flex items-center gap-1 px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-bold border border-slate-200'><i class='bi bi-clock-history'></i> รอลงรับ</span>";
+                             }
+                             echo "</td>";
 
-                                    if ($isApproved) {
-                                        echo "<a href='document_preview.php?doc_id={$doc_id}&file_id={$file_id}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors mb-1'><i class='bi bi-eye'></i> ดูเอกสาร{$c}</a><br>";
-                                    } else {
-                                        echo "<div class='flex items-center justify-center gap-1 mb-1'>
-                                                <a href='sarabun_sign.php?doc_id={$doc_id}&file_id={$file_id}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors'><i class='bi bi-stamp'></i> ลงรับ {$c}</a>
-                                                <a href='sarabun_signtxt.php?doc_id={$doc_id}&file_id={$file_id}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg transition-colors'><i class='bi bi-pencil-square'></i> เกษียณ {$c}</a>
-                                              </div>";
-                                    }
-                                    $c++;
-                                }
-                            }
+                             echo "<td class='px-4 py-3 text-center'>";
+                             if ($fileResult->num_rows > 0) {
+                                 $fileResult->data_seek(0);
+                                 $c = 1;
+                                 while ($f = $fileResult->fetch_assoc()) {
+                                     $file_id = $f['file_id'];
+                                     
+                                     if ($sign_sarabun == 'approve') {
+                                         echo "<div class='flex items-center justify-center gap-1 mb-1'>";
+                                         echo "<a href='document_preview.php?doc_id={$doc_id}&file_id={$file_id}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-white border border-slate-200 hover:bg-slate-50 rounded-lg transition-colors shadow-sm'><i class='bi bi-eye'></i> ดูเอกสาร{$c}</a>";
+                                         if ($_SESSION['role_id'] == 1) {
+                                             echo "<a href='sarabun_sign.php?doc_id={$doc_id}&file_id={$file_id}' title='(แอดมิน) แก้ไขการลงรับ' class='inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors'><i class='bi bi-pencil'></i> แก้ไข</a>";
+                                         }
+                                         echo "</div>";
+                                     } else {
+                                         echo "<div class='flex items-center justify-center gap-1 mb-1'>";
+                                         
+                                         // ปุ่มลงรับ
+                                         if ($sign_sarabun == 'stamp_done') {
+                                             echo "<span class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-green-700 bg-green-50 border border-green-200 rounded-lg'><i class='bi bi-check'></i> ลงรับแล้ว </span>";
+                                             if ($_SESSION['role_id'] == 1) {
+                                                 echo "<a href='sarabun_sign.php?doc_id={$doc_id}&file_id={$file_id}' title='(แอดมิน) แก้ไขการลงรับ' class='inline-flex items-center justify-center px-2 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors'><i class='bi bi-pencil'></i></a>";
+                                             }
+                                         } else {
+                                             echo "<a href='sarabun_sign.php?doc_id={$doc_id}&file_id={$file_id}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 rounded-lg transition-colors'><i class='bi bi-stamp'></i> ลงรับ{$c}</a>";
+                                         }
+                                         
+                                         // ปุ่มเกษียณ
+                                         if ($sign_sarabun == 'stamp_done') {
+                                             echo "<a href='sarabun_signtxt.php?doc_id={$doc_id}&file_id={$file_id}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 border border-blue-200 hover:bg-blue-100 rounded-lg transition-colors'><i class='bi bi-pencil-square'></i> เกษียณ{$c}</a>";
+                                         } else {
+                                             echo "<span class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-400 bg-gray-50 border border-gray-200 rounded-lg cursor-not-allowed' title='ต้องทำรายการลงรับก่อนทำการเกษียณ'><i class='bi bi-pencil-square'></i> เกษียณ{$c}</span>";
+                                         }
+                                         echo "</div>";
+                                     }
+                                     $c++;
+                                 }
+                             }
                             echo "</td></tr>";
                         }
                         ?>

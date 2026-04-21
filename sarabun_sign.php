@@ -135,9 +135,8 @@ $sign_query->close();
                     </div>
 
                     <div>
-                        <label for="dep_select" class="block text-sm font-medium text-gray-700 mb-2">ส่งต่อฝ่าย (รอง ผอ.) <span class="text-red-500">*</span></label>
-                        <select id="dep_select" name="dep-id" class="form-select w-full border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500" required>
-                            <option value="" disabled selected>-- เลือกฝ่ายที่รับผิดชอบ --</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">ส่งต่อฝ่าย (รอง ผอ.) <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 gap-2 border border-gray-200 p-3 rounded-lg bg-gray-50 max-h-48 overflow-y-auto">
                             <?php
                             $inst_id = $_SESSION['inst_id'];
                             $dep_q = $conn->prepare("SELECT dep_id, dep_name FROM department WHERE inst_id = ? ORDER BY dep_id");
@@ -146,11 +145,14 @@ $sign_query->close();
                             $dep_res = $dep_q->get_result();
                             while ($dep = $dep_res->fetch_assoc()):
                             ?>
-                                <option value="<?= $dep['dep_id'] ?>"><?= htmlspecialchars($dep['dep_name']) ?></option>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition-colors group">
+                                    <input type="checkbox" name="dep-id[]" value="<?= $dep['dep_id'] ?>" class="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500">
+                                    <span class="text-sm text-gray-700 group-hover:text-brand-700 transition-colors"><?= htmlspecialchars($dep['dep_name']) ?></span>
+                                </label>
                             <?php endwhile; 
                             $dep_q->close();
                             ?>
-                        </select>
+                        </div>
                     </div>
 
                     <div class="grid grid-cols-2 gap-4">
@@ -370,11 +372,23 @@ document.getElementById('formSelect').addEventListener('change', function() {
         form.addEventListener('submit', function(event) {
             const xPos = form.querySelector('[name="x-pos"]').value;
             const yPos = form.querySelector('[name="y-pos"]').value;
-
-            // ถ้าไม่ได้ระบุพิกัด ให้แสดงข้อความเตือนและไม่ส่งฟอร์ม
+            
+            // ตรวจสอบพิกัด
             if (xPos.trim() === '' || yPos.trim() === '') {
                 alert('กรุณาคลิกตำแหน่งบนหน้ากระดาษ');
                 event.preventDefault();
+                return;
+            }
+
+            // ตรวจสอบฝ่าย (ถ้ามี input name="dep-id[]")
+            const depCheckboxes = form.querySelectorAll('input[name="dep-id[]"]');
+            if (depCheckboxes.length > 0) {
+                const checked = Array.from(depCheckboxes).some(cb => cb.checked);
+                if (!checked) {
+                    alert('กรุณาเลือกฝ่ายที่รับผิดชอบอย่างน้อย 1 ฝ่าย');
+                    event.preventDefault();
+                    return;
+                }
             }
         });
     });

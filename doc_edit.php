@@ -1,25 +1,21 @@
 <?php
 ob_start();
 require_once 'auth_check.php';
-require_role([1, 2]);
+require_role([1]);
 include 'edoc-db.php';
 
-function uploadDocument($file, $doc_id) {
-    if ($file['error'] !== UPLOAD_ERR_OK) return false;
-    if (mime_content_type($file['tmp_name']) !== 'application/pdf') return false;
-    $uploadDir = 'uploads/documents/';
-    if (!file_exists($uploadDir)) mkdir($uploadDir, 0777, true);
-    $safeFileName = uniqid('doc_', true) . '.pdf';
-    $targetFilePath = $uploadDir . $safeFileName;
-    if (move_uploaded_file($file['tmp_name'], $targetFilePath)) {
-        global $conn;
-        $stmt = $conn->prepare("INSERT INTO document_files (doc_id, file_path) VALUES (?, ?)");
-        $stmt->bind_param("is", $doc_id, $targetFilePath);
-        $stmt->execute();
-        $stmt->close();
-        return $targetFilePath;
-    }
-    return false;
+function generateDocNo($conn, $docTypeId) {
+    $currentYear = date('Y') + 543;
+    $inst_id = $_SESSION['inst_id'];
+    $sql = "SELECT MAX(doc_no) AS max_no FROM documents WHERE doc_type_id = ? AND inst_id = ? AND doc_no LIKE '%/$currentYear'";
+    $stmt = $conn->prepare($sql);
+    $stmt->bind_param("ii", $docTypeId, $inst_id);
+    $stmt->execute();
+    $result = $stmt->get_result();
+    $row = $result->fetch_assoc();
+    $stmt->close();
+    $sequenceNumber = $row['max_no'] ? (int)explode('/', $row['max_no'])[0] + 1 : 1;
+    return str_pad($sequenceNumber, 2, '0', STR_PAD_LEFT) . '/' . $currentYear;
 }
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_doc'])) {
@@ -27,22 +23,49 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST['edit_doc'])) {
     $doc_from = trim($_POST['doc_from']);
     $doc_name = trim($_POST['doc_name']);
     $doc_type_id = intval($_POST['doc_type']);
-    $sql = "UPDATE documents SET doc_name=?, doc_type_id=?, doc_from=? WHERE doc_id=?";
+
+    // ดึงข้อมูลเดิมมาตรวจสอบว่าเปลี่ยนประเภทหนังสือหรือไม่
+    $chk_stmt = $conn->prepare("SELECT doc_type_id, doc_no FROM documents WHERE doc_id=?");
+    $chk_stmt->bind_param("i", $doc_id);
+    $chk_stmt->execute();
+    $old_doc = $chk_stmt->get_result()->fetch_assoc();
+    $chk_stmt->close();
+
+    $doc_no = $old_doc['doc_no'];
+
+    // ถ้ารหัสประเภทหนังสือถูกเปลี่ยนจากเดิม ให้สร้างเลขใหม่ตามประเภทย่อยนั้น
+    if ($old_doc['doc_type_id'] != $doc_type_id) {
+        $doc_no = generateDocNo($conn, $doc_type_id);
+    }
+
+    $sql = "UPDATE documents SET doc_name=?, doc_type_id=?, doc_from=?, doc_no=? WHERE doc_id=?";
     $stmt = $conn->prepare($sql);
-    $stmt->bind_param("sisi", $doc_name, $doc_type_id, $doc_from, $doc_id);
+    $stmt->bind_param("sissi", $doc_name, $doc_type_id, $doc_from, $doc_no, $doc_id);
+    
     if ($stmt->execute()) {
         $stmt->close();
-        if (isset($_FILES['doc_files']) && $_FILES['doc_files']['name'][0] != '') {
-            foreach ($_FILES['doc_files']['name'] as $key => $fileName) {
-                $fileArray = [
-                    'name' => $_FILES['doc_files']['name'][$key],
-                    'tmp_name' => $_FILES['doc_files']['tmp_name'][$key],
-                    'error' => $_FILES['doc_files']['error'][$key],
-                    'size' => $_FILES['doc_files']['size'][$key],
-                ];
-                uploadDocument($fileArray, $doc_id);
+        
+        // อัปโหลดไฟล์เพิ่มเติม (เหมือนกับ doc_add.php)
+        if (isset($_FILES['doc_files']) && !empty($_FILES['doc_files']['name'][0])) {
+            $uploadDir = 'uploads/documents/';
+            if (!file_exists($uploadDir)) mkdir($uploadDir, 0777, true);
+            foreach ($_FILES['doc_files']['name'] as $index => $fileName) {
+                if ($_FILES['doc_files']['error'][$index] === UPLOAD_ERR_OK) {
+                    $tmpName = $_FILES['doc_files']['tmp_name'][$index];
+                    if (mime_content_type($tmpName) === 'application/pdf') {
+                        $safeFileName = uniqid('doc_', true) . '.pdf';
+                        $targetFilePath = $uploadDir . $safeFileName;
+                        if (move_uploaded_file($tmpName, $targetFilePath)) {
+                            $fStmt = $conn->prepare("INSERT INTO document_files (doc_id, file_path) VALUES (?, ?)");
+                            $fStmt->bind_param("is", $doc_id, $targetFilePath);
+                            $fStmt->execute();
+                            $fStmt->close();
+                        }
+                    }
+                }
             }
         }
+        
         header("Location: doc_manage.php?msg=success");
         exit();
     }

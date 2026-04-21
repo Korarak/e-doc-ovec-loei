@@ -1,9 +1,5 @@
-<?php
-session_start();
-if (!isset($_SESSION['user_id'])) {
-    header("Location: index.php");
-    exit();
-}
+require_once 'auth_check.php';
+require_role([1]);
 
 include 'edoc-db.php';
 

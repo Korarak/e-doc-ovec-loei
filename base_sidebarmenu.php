@@ -37,10 +37,12 @@ if (isset($_SESSION['role_id']) && (int)$_SESSION['role_id'] === 99):
             <i class="bi bi-people text-lg mr-3 <?= $curr == 'user_manage.php' ? 'text-brand-400' : 'text-brand-500 group-hover:text-brand-400' ?>"></i>
             <span>จัดการข้อมูลผู้ใช้</span>
         </a>
+        <?php if (isset($_SESSION['role_id']) && (int)$_SESSION['role_id'] === 1): ?>
         <a href="doc_manage.php" class="<?= in_array($curr, ['doc_manage.php', 'doc_add.php', 'doc_edit.php']) ? $active_class : $inactive_class ?>">
             <i class="bi bi-file-earmark-text text-lg mr-3 <?= in_array($curr, ['doc_manage.php', 'doc_add.php', 'doc_edit.php']) ? 'text-brand-400' : 'text-brand-500 group-hover:text-brand-400' ?>"></i>
             <span>จัดการหนังสือราชการ</span>
         </a>
+        <?php endif; ?>
         <a href="user_signature.php" class="<?= $curr == 'user_signature.php' ? $active_class : $inactive_class ?>">
             <i class="bi bi-pen-fill text-lg mr-3 <?= $curr == 'user_signature.php' ? 'text-brand-400' : 'text-brand-500 group-hover:text-brand-400' ?>"></i>
             <span>ลายเซ็นส่วนตัว</span>

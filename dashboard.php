@@ -37,7 +37,7 @@ $inst_id = $_SESSION['inst_id'];
 $stmt = $conn->prepare("SELECT COUNT(*) FROM documents WHERE inst_id = ?");
 $stmt->bind_param("i", $inst_id); $stmt->execute(); $totalDocs = $stmt->get_result()->fetch_row()[0]; $stmt->close();
 
-$stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_sarabun = 'pending' AND d.inst_id = ?");
+$stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_sarabun IN ('pending', 'stamp_done') AND d.inst_id = ?");
 $stmt->bind_param("i", $inst_id); $stmt->execute(); $pendingDocs = $stmt->get_result()->fetch_row()[0]; $stmt->close();
 
 $stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_sarabun='approve' AND sd.sign_codirector='approve' AND sd.sign_director='approve' AND d.inst_id = ?");
@@ -94,7 +94,7 @@ $recentDocs = $stmt->get_result();
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center relative overflow-hidden group">
         <div class="absolute inset-x-0 bottom-0 h-1 bg-amber-500 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left text-amber-500"></div>
         <div class="text-4xl font-extrabold text-amber-500 mb-2"><?php echo $pendingDocs; ?></div>
-        <div class="text-sm font-medium text-slate-500">รอสารบรรณรับ</div>
+        <div class="text-sm font-medium text-slate-500">รอสารบรรณจัดการ</div>
     </div>
 
     <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100 text-center relative overflow-hidden group">

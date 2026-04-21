@@ -2,8 +2,7 @@
 ob_start();
 require_once 'auth_check.php';
 // auth_check.php already handles session_start and basic checks.
-// If we want to restrict this page strictly to Admin / Sarabun, we can add:
-// require_role([1, 2]); // Currently allowing everyone to view docs as per original design.
+require_role([1]); // Restricted to Administrator only.
 
 include 'edoc-db.php';
 ?>

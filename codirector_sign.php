@@ -439,8 +439,8 @@ $gal_query->close();
         canvas = document.getElementById('pdf-canvas'),
         ctx = canvas.getContext('2d'),
         previewText = document.getElementById('preview-text'),
-        previewDate = document.getElementById('preview-date');
-        previewSign = document.getElementById('preview-sign'),
+        previewDate = document.getElementById('preview-date'),
+        previewSign = document.getElementById('preview-sign');
 
     document.getElementById('prev-page').addEventListener('click', function() {
         if (pageNum <= 1) return;
@@ -707,7 +707,6 @@ function clearCustomSign() {
     if (!document.getElementById('signCheckbox').checked) {
         document.getElementById('signatureImage').style.display = 'none';
     }
-}
 }
 
 function openGalleryModal() {

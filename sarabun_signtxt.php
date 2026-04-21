@@ -166,9 +166,8 @@ $signatureImage = isset($_SESSION['sign']) ? $_SESSION['sign'] : null;
                     </div>
 
                     <div>
-                        <label for="department" class="block text-sm font-medium text-gray-700 mb-2">เสนอรองผู้อำนวยการฝ่าย</label>
-                        <select id="department" name="dep-id" class="form-select w-full border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500" required>
-                            <option value="" disabled selected>เลือกฝ่าย</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เสนอรองผู้อำนวยการฝ่าย <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 gap-2 border border-gray-200 p-3 rounded-lg bg-gray-50 max-h-40 overflow-y-auto" id="dept-list-1">
                             <?php
                             $inst_id = $_SESSION['inst_id'];
                             $dep_query = $conn->prepare("SELECT dep_id, dep_name FROM department WHERE inst_id = ?");
@@ -177,9 +176,12 @@ $signatureImage = isset($_SESSION['sign']) ? $_SESSION['sign'] : null;
                             $departments = $dep_query->get_result()->fetch_all(MYSQLI_ASSOC);
                             $dep_query->close();
                             foreach ($departments as $department): ?>
-                                <option value="<?= $department['dep_id'] ?>"><?= $department['dep_name'] ?></option>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition-colors group">
+                                    <input type="checkbox" name="dep-id[]" value="<?= $department['dep_id'] ?>" class="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500">
+                                    <span class="text-sm text-gray-700 group-hover:text-brand-700 transition-colors"><?= htmlspecialchars($department['dep_name']) ?></span>
+                                </label>
                             <?php endforeach; ?>
-                        </select>
+                        </div>
                     </div>
                     
                     <div class="flex gap-2 pt-2">
@@ -194,21 +196,16 @@ $signatureImage = isset($_SESSION['sign']) ? $_SESSION['sign'] : null;
                     <p class="font-medium text-gray-800 mb-3 border-b pb-2">ตราปั้ม ทาน พิมพ์ คำสั่ง</p>
                     
                     <div>
-                        <label for="department2" class="block text-sm font-medium text-gray-700 mb-2">เสนอรองผู้อำนวยการฝ่าย</label>
-                        <select id="department2" name="dep-id" class="form-select w-full border-gray-300 rounded-lg focus:ring-brand-500 focus:border-brand-500" required>
-                            <option value="" disabled selected>เลือกฝ่าย</option>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">เสนอรองผู้อำนวยการฝ่าย <span class="text-red-500">*</span></label>
+                        <div class="grid grid-cols-1 gap-2 border border-gray-200 p-3 rounded-lg bg-gray-50 max-h-40 overflow-y-auto" id="dept-list-2">
                             <?php
-                            $inst_id = $_SESSION['inst_id'];
-                            $dep_query = $conn->prepare("SELECT dep_id, dep_name FROM department WHERE inst_id = ?");
-                            $dep_query->bind_param("i", $inst_id);
-                            $dep_query->execute();
-                            $departments = $dep_query->get_result()->fetch_all(MYSQLI_ASSOC);
-                            $dep_query->close();
-                            foreach ($departments as $department):
-                                echo '<option value="' . $department['dep_id'] . '" data-dep-name="' . htmlspecialchars($department['dep_name']) . '">' . $department['dep_name'] . '</option>';
-                            endforeach;
-                            ?>
-                        </select>
+                            foreach ($departments as $department): ?>
+                                <label class="flex items-center gap-2 cursor-pointer hover:bg-white p-1 rounded transition-colors group">
+                                    <input type="checkbox" name="dep-id[]" value="<?= $department['dep_id'] ?>" data-dep-name="<?= htmlspecialchars($department['dep_name']) ?>" class="w-4 h-4 text-brand-600 border-gray-300 rounded focus:ring-brand-500">
+                                    <span class="text-sm text-gray-700 group-hover:text-brand-700 transition-colors"><?= htmlspecialchars($department['dep_name']) ?></span>
+                                </label>
+                            <?php endforeach; ?>
+                        </div>
                     </div>
                     
                     <div>
@@ -264,6 +261,7 @@ $signatureImage = isset($_SESSION['sign']) ? $_SESSION['sign'] : null;
                     <input type="hidden" name="doc_id" value="<?= $doc_id ?>">
                     <input type="hidden" name="file_id" value="<?= $file_id ?>">
                     <input type="hidden" id="hidden-dep-id" name="dep-id" value="">
+                    <div id="hidden-dep-ids-container"></div>
                     <input type="hidden" id="sign-display" name="sign_display" value="False">
                     
                     <button type="submit" class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-2.5 rounded-lg transition-colors flex justify-center items-center gap-2 shadow-sm mt-4">
@@ -361,8 +359,8 @@ $signatureImage = isset($_SESSION['sign']) ? $_SESSION['sign'] : null;
         canvas = document.getElementById('pdf-canvas'),
         ctx = canvas.getContext('2d'),
         previewText = document.getElementById('preview-text'),
-        previewDate = document.getElementById('preview-date');
-        previewSign = document.getElementById('preview-sign'),
+        previewDate = document.getElementById('preview-date'),
+        previewSign = document.getElementById('preview-sign');
 
     document.getElementById('prev-page').addEventListener('click', function() {
         if (pageNum <= 1) return;
@@ -436,21 +434,27 @@ canvas.addEventListener('click', function(event) {
     loadPDF('<?= $doc_file ?>');
 
     function submitForm() {
-    var departmentSelect = document.getElementById("department");
-    var departmentValue = departmentSelect.options[departmentSelect.selectedIndex].value;
-    // Set the value in the hidden field of the second form
-    document.getElementById("hidden-dep-id").value = departmentValue;
     var form = document.getElementById('myForm');
     var checkboxes = form.querySelectorAll('input[type="checkbox"]');
     var comments = form.querySelector('textarea[name="comments"]').value;
-    var departmentSelect = form.querySelector('select[name="dep-id"]'); // Get the department select element
     var result = 'เรียน ผอ. วท.เลย\n';
 
-    // Check if a department is selected
-    if (departmentSelect.value === "") {
-        alert("กรุณาเลือกฝ่าย");
-        return; // Prevent the form from being submitted if no department is selected
+    var checkboxes_dep = form.querySelectorAll('input[name="dep-id[]"]:checked');
+    if (checkboxes_dep.length === 0) {
+        alert("กรุณาเลือกฝ่ายที่รับผิดชอบอย่างน้อย 1 ฝ่าย");
+        return;
     }
+
+    // Prepare hidden inputs for multiple dep-ids
+    var hiddenContainer = document.getElementById("hidden-dep-ids-container");
+    hiddenContainer.innerHTML = '';
+    checkboxes_dep.forEach(cb => {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'dep-id[]';
+        input.value = cb.value;
+        hiddenContainer.appendChild(input);
+    });
 
     // ตรวจสอบ checkbox ที่ถูกเลือก
     var action1 = 'เพื่อโปรด ';
@@ -496,23 +500,32 @@ canvas.addEventListener('click', function(event) {
 </script>
 
 
-<script>
 
+<script>
 function submitForm2() {
-    var departmentSelect = document.getElementById("department2");
-    var departmentValue = departmentSelect.options[departmentSelect.selectedIndex].value;
-    // Set the value in the hidden field of the second form
-    document.getElementById("hidden-dep-id").value = departmentValue;
     var form = document.getElementById('myForm2');
     var textArea = document.getElementById('input-text');
-    var departmentSelect = form.querySelector('select[name="dep-id"]'); // Get the department select element
-    var departmentName = departmentSelect.options[departmentSelect.selectedIndex].getAttribute('data-dep-name'); // Get the department name
-
-    var result = 'เสนอรอง ผอ. : ' + departmentName + '\n';
-    if (departmentSelect.value === "") {
-        alert("กรุณาเลือกฝ่าย");
-        return; // Prevent the form from being submitted if no department is selected
+    var checkboxes_dep = form.querySelectorAll('input[name="dep-id[]"]:checked');
+    if (checkboxes_dep.length === 0) {
+        alert("กรุณาเลือกฝ่ายที่รับผิดชอบอย่างน้อย 1 ฝ่าย");
+        return;
     }
+
+    // Prepare hidden inputs for multiple dep-ids
+    var hiddenContainer = document.getElementById("hidden-dep-ids-container");
+    hiddenContainer.innerHTML = '';
+    
+    var depNames = [];
+    checkboxes_dep.forEach(cb => {
+        var input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'dep-id[]';
+        input.value = cb.value;
+        hiddenContainer.appendChild(input);
+        depNames.push(cb.getAttribute('data-dep-name'));
+    });
+
+    var result = 'เสนอรอง ผอ. : ' + depNames.join(', ') + '\n';
     // เก็บข้อมูลจาก input และ select พร้อมกับจัดรูปแบบข้อความ
     var inputs = form.querySelectorAll('input[type="text"], select');
     inputs.forEach(function(input) {
@@ -537,11 +550,6 @@ function submitForm2() {
     textArea.value += 'วันที่ ' + formattedDate;
 }
 
-// ตรวจสอบการคลิกของปุ่มส่งฟอร์ม
-document.getElementById('submitBtn').addEventListener('click', function(event) {
-    event.preventDefault();  // ป้องกันไม่ให้ฟอร์มถูกส่งไปยัง server เมื่อกดปุ่ม
-    submitForm2();
-});
 
 
 function toggleSignature() {
