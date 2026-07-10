@@ -12,7 +12,7 @@ $conn = new mysqli($servername, $username, $password, $dbname);
 if ($conn->connect_error) {
     die("Connection failed: " . $conn->connect_error);
 }
-$conn->set_charset("utf8"); // Set charset to utf8 for Thai language support
+$conn->set_charset("utf8mb4"); // utf8mb4 matches the database schema and supports all Thai/Unicode characters
 
 date_default_timezone_set('Asia/Bangkok');
 

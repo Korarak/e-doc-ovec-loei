@@ -22,7 +22,7 @@ if (empty($_SESSION['csrf_token'])) {
         tailwind.config = {
             theme: {
                 extend: {
-                    fontFamily: { sans: ['Kanit', 'sans-serif'] },
+                    fontFamily: { sans: ['Sarabun', 'sans-serif'] },
                     colors: {
                         brand:   { 50:'#f0fdf4', 100:'#dcfce7', 200:'#bbf7d0', 300:'#86efac', 400:'#4ade80', 500:'#22c55e', 600:'#16a34a', 700:'#15803d', 800:'#166534', 900:'#14532d' },
                         sidebar: '#1e293b',
@@ -36,7 +36,7 @@ if (empty($_SESSION['csrf_token'])) {
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Bootstrap Icons (icon font only) -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
@@ -49,7 +49,7 @@ if (empty($_SESSION['csrf_token'])) {
 
     <style>
         /* DataTables overrides for Tailwind look */
-        .dataTables_wrapper { font-family: 'Kanit', sans-serif; }
+        .dataTables_wrapper { font-family: 'Sarabun', sans-serif; }
         .dataTables_wrapper .dataTables_filter input {
             border: 1px solid #d1d5db; border-radius: 0.5rem; padding: 0.4rem 0.75rem; outline: none;
             font-size: 0.875rem;
@@ -88,7 +88,7 @@ if (empty($_SESSION['csrf_token'])) {
         <a href="dashboard.php" class="flex items-center gap-2 text-white font-bold text-lg">
             <i class="bi bi-shield-check text-brand-400"></i> E-Sign System
         </a>
-        <button id="sidebarToggle" class="text-white p-2 rounded-lg hover:bg-sidebarHover transition-colors">
+        <button id="sidebarToggle" aria-label="เปิดเมนู" class="text-white p-2 rounded-lg hover:bg-sidebarHover transition-colors">
             <i class="bi bi-list text-2xl"></i>
         </button>
     </header>
@@ -109,7 +109,7 @@ if (empty($_SESSION['csrf_token'])) {
                     </div>
                 </a>
                 <!-- Close button for mobile/tablet -->
-                <button id="sidebarClose" class="xl:hidden text-slate-400 hover:text-white">
+                <button id="sidebarClose" aria-label="ปิดเมนู" class="xl:hidden text-slate-400 hover:text-white">
                     <i class="bi bi-x-lg"></i>
                 </button>
             </div>

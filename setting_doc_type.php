@@ -79,6 +79,13 @@ $stmt->close();
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100 text-gray-700">
+                    <?php if (empty($items)): ?>
+                    <tr>
+                        <td colspan="3" class="px-4 py-10 text-center text-gray-400">
+                            <i class="bi bi-inbox text-3xl block mb-2"></i> ยังไม่มีประเภทหนังสือ — เพิ่มรายการแรกได้จากช่องด้านบน
+                        </td>
+                    </tr>
+                    <?php endif; ?>
                     <?php foreach ($items as $item): ?>
                     <tr class="hover:bg-gray-50/50 transition-colors">
                         <td class="px-4 py-3 text-gray-500"><?= $item['doc_type_id'] ?></td>

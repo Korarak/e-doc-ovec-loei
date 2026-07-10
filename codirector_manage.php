@@ -45,29 +45,36 @@ include 'edoc-db.php';
                         $stmt->execute();
                         $result = $stmt->get_result();
 
+                        // Load every attached file for this institution in one query
+                        // instead of one query per document row.
+                        $filesByDoc = [];
+                        $fileStmt = $conn->prepare("SELECT df.doc_id, df.file_id, df.file_path FROM document_files df JOIN documents d ON df.doc_id = d.doc_id WHERE d.inst_id = ? ORDER BY df.file_id");
+                        $fileStmt->bind_param('i', $inst_id);
+                        $fileStmt->execute();
+                        $fRes = $fileStmt->get_result();
+                        while ($f = $fRes->fetch_assoc()) {
+                            $filesByDoc[$f['doc_id']][] = $f;
+                        }
+                        $fileStmt->close();
+
                         while ($row = $result->fetch_assoc()) {
                             $doc_id = $row['doc_id'];
+                            $docFiles = $filesByDoc[$doc_id] ?? [];
                             $isCoDirApproved = ($row['sign_codirector'] === 'approve');
 
                             echo "<tr class='hover:bg-gray-50/50 transition-colors'>
-                                <td class='px-4 py-3 font-medium text-gray-900'>{$row['doc_no']}</td>
-                                <td class='px-4 py-3'><span class='inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-slate-100 text-slate-700'>{$row['doc_type_name']}</span></td>
+                                <td class='px-4 py-3 font-medium text-gray-900'>".htmlspecialchars($row['doc_no'])."</td>
+                                <td class='px-4 py-3'><span class='inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-slate-100 text-slate-700'>".htmlspecialchars($row['doc_type_name'])."</span></td>
                                 <td class='px-4 py-3 text-sm'>".formatThaiDate($row['doc_upload_date'])."</td>
-                                <td class='px-4 py-3 text-sm'>{$row['doc_from']}</td>
-                                <td class='px-4 py-3'>{$row['doc_name']}</td>";
-
-                            $fileSql = "SELECT file_id, file_path FROM document_files WHERE doc_id = ?";
-                            $fileStmt = $conn->prepare($fileSql);
-                            $fileStmt->bind_param('i', $doc_id);
-                            $fileStmt->execute();
-                            $fileResult = $fileStmt->get_result();
+                                <td class='px-4 py-3 text-sm'>".htmlspecialchars($row['doc_from'] ?? '')."</td>
+                                <td class='px-4 py-3'>".htmlspecialchars($row['doc_name'])."</td>";
 
                             // File column
                             echo "<td class='px-4 py-3'>";
-                            if ($fileResult->num_rows > 0) {
+                            if (!empty($docFiles)) {
                                 $c = 1;
-                                while ($f = $fileResult->fetch_assoc()) {
-                                    echo "<a href='{$f['file_path']}' target='_blank' class='inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded-lg transition-colors mr-1 mb-1'><i class='bi bi-file-pdf'></i> ไฟล์ {$c}</a>";
+                                foreach ($docFiles as $f) {
+                                    echo "<a href='".htmlspecialchars($f['file_path'])."' target='_blank' class='inline-flex items-center gap-1 px-2 py-1 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 hover:bg-sky-100 rounded-lg transition-colors mr-1 mb-1'><i class='bi bi-file-pdf'></i> ไฟล์ {$c}</a>";
                                     $c++;
                                 }
                             } else {
@@ -77,10 +84,9 @@ include 'edoc-db.php';
 
                             // Preview column
                             echo "<td class='px-4 py-3 text-center'>";
-                            if ($fileResult->num_rows > 0) {
-                                $fileResult->data_seek(0);
+                            if (!empty($docFiles)) {
                                 $c = 1;
-                                while ($f = $fileResult->fetch_assoc()) {
+                                foreach ($docFiles as $f) {
                                     echo "<a href='document_preview.php?doc_id={$doc_id}&file_id={$f['file_id']}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors mb-1'><i class='bi bi-eye'></i> ดูเอกสาร {$c}</a><br>";
                                     $c++;
                                 }
@@ -89,10 +95,9 @@ include 'edoc-db.php';
 
                             // Action column
                             echo "<td class='px-4 py-3 text-center'>";
-                            if ($fileResult->num_rows > 0) {
-                                $fileResult->data_seek(0);
+                            if (!empty($docFiles)) {
                                 $c = 1;
-                                while ($f = $fileResult->fetch_assoc()) {
+                                foreach ($docFiles as $f) {
                                     if ($isCoDirApproved) {
                                         echo "<span class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold text-green-700 bg-green-100 rounded-lg mb-1'><i class='bi bi-check-circle'></i> ดำเนินการแล้ว</span><br>";
                                     } else {

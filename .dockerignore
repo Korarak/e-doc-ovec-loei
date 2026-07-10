@@ -1,0 +1,16 @@
+# Keep the build context small — the app code is volume-mounted at runtime,
+# so nothing below is needed inside the image build.
+.git
+.claude
+.env
+.env.example
+vendor
+composer_cache
+uploads
+tmp
+docs
+database
+experimental
+test.pdf
+db_schema.html
+*.md

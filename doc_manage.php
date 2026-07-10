@@ -38,10 +38,10 @@ include 'edoc-db.php';
                         <?php
                         // Fetch documents scoped by institution.
                         $inst_id = $_SESSION['inst_id'];
-                        $sql = "SELECT d.*, dt.doc_type_name, u.fullname 
+                        $sql = "SELECT d.*, dt.doc_type_name, u.fullname
                                 FROM documents d
                                 JOIN document_types dt ON d.doc_type_id = dt.doc_type_id
-                                JOIN user u ON d.doc_uploader = u.user_id 
+                                JOIN user u ON d.doc_uploader = u.user_id
                                 WHERE d.inst_id = ?
                                 ORDER BY d.doc_upload_date DESC";
                         $stmt = $conn->prepare($sql);
@@ -49,36 +49,39 @@ include 'edoc-db.php';
                         $stmt->execute();
                         $result = $stmt->get_result();
 
+                        // Load every attached file for this institution in one query
+                        // instead of one query per document row.
+                        $filesByDoc = [];
+                        $fStmt = $conn->prepare("SELECT df.doc_id, df.file_path FROM document_files df JOIN documents d ON df.doc_id = d.doc_id WHERE d.inst_id = ? ORDER BY df.file_id");
+                        $fStmt->bind_param("i", $inst_id);
+                        $fStmt->execute();
+                        $fRes = $fStmt->get_result();
+                        while ($f = $fRes->fetch_assoc()) {
+                            $filesByDoc[$f['doc_id']][] = $f['file_path'];
+                        }
+                        $fStmt->close();
+
                         while ($row = $result->fetch_assoc()) {
                             echo "<tr class='hover:bg-gray-50/50 transition-colors'>
                                 <td class='px-4 py-3 whitespace-nowrap'>".formatThaiDate($row['doc_upload_date'])."</td>
-                                <td class='px-4 py-3 whitespace-nowrap'><span class='inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200'>{$row['doc_type_name']}</span></td>
-                                <td class='px-4 py-3 whitespace-nowrap font-medium text-gray-900'>{$row['doc_no']}</td>
-                                <td class='px-4 py-3 text-gray-600'>{$row['doc_from']}</td>
-                                <td class='px-4 py-3 text-gray-800 min-w-[200px]'>{$row['doc_name']}</td>
+                                <td class='px-4 py-3 whitespace-nowrap'><span class='inline-flex items-center px-2 py-1 rounded text-xs font-semibold bg-slate-100 text-slate-700 border border-slate-200'>".htmlspecialchars($row['doc_type_name'])."</span></td>
+                                <td class='px-4 py-3 whitespace-nowrap font-medium text-gray-900'>".htmlspecialchars($row['doc_no'])."</td>
+                                <td class='px-4 py-3 text-gray-600'>".htmlspecialchars($row['doc_from'] ?? '')."</td>
+                                <td class='px-4 py-3 text-gray-800 min-w-[200px]'>".htmlspecialchars($row['doc_name'])."</td>
                                 <td class='px-4 py-3 whitespace-nowrap'>";
-                    
-                            // Fetch associated files
-                            $doc_id = $row['doc_id'];
-                            $fileSql = "SELECT file_path FROM document_files WHERE doc_id = ?";
-                            $fStmt = $conn->prepare($fileSql);
-                            $fStmt->bind_param("i", $doc_id);
-                            $fStmt->execute();
-                            $fileResult = $fStmt->get_result();
 
-                            if ($fileResult->num_rows > 0) {
-                                $fCount = 1;
-                                while ($fileRow = $fileResult->fetch_assoc()) {
-                                    echo "<a href='{$fileRow['file_path']}' target='_blank' class='inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded hover:bg-sky-100 transition-colors mb-1 mr-1'><i class='bi bi-file-pdf'></i> ไฟล์ {$fCount}</a><br>";
-                                    $fCount++;
+                            $docFiles = $filesByDoc[$row['doc_id']] ?? [];
+                            if (!empty($docFiles)) {
+                                foreach ($docFiles as $i => $filePath) {
+                                    $fCount = $i + 1;
+                                    echo "<a href='".htmlspecialchars($filePath)."' target='_blank' class='inline-flex items-center justify-center gap-1 px-2.5 py-1 text-xs font-medium text-sky-700 bg-sky-50 border border-sky-200 rounded hover:bg-sky-100 transition-colors mb-1 mr-1'><i class='bi bi-file-pdf'></i> ไฟล์ {$fCount}</a><br>";
                                 }
                             } else {
                                 echo "<span class='text-gray-400 text-sm'>ไม่มีไฟล์</span>";
                             }
-                            $fStmt->close();
 
                             echo "</td>
-                                <td class='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>{$row['fullname']}</td>
+                                <td class='px-4 py-3 whitespace-nowrap text-sm text-gray-500'>".htmlspecialchars($row['fullname'])."</td>
                                 <td class='px-4 py-3 whitespace-nowrap text-center'>
                                     <div class='flex items-center justify-center gap-2'>
                                         <a href='doc_edit.php?id={$row['doc_id']}' class='inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 hover:text-amber-800 rounded-lg transition-colors'><i class='bi bi-pencil'></i> แก้ไข</a>

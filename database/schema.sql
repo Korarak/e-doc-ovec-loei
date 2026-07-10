@@ -107,7 +107,9 @@ CREATE TABLE `documents` (
   `inst_id` int(11) NOT NULL DEFAULT 1,
   PRIMARY KEY (`doc_id`),
   KEY `idx_documents_upload` (`doc_upload_date`),
-  KEY `idx_documents_type` (`doc_type_id`)
+  KEY `idx_documents_type` (`doc_type_id`),
+  KEY `idx_documents_inst` (`inst_id`),
+  KEY `idx_documents_uploader` (`doc_uploader`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
 
 DROP TABLE IF EXISTS `document_files`;

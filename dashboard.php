@@ -34,20 +34,32 @@ $stmt->close();
 // ────────────────────────────────────────────
 $inst_id = $_SESSION['inst_id'];
 
-$stmt = $conn->prepare("SELECT COUNT(*) FROM documents WHERE inst_id = ?");
-$stmt->bind_param("i", $inst_id); $stmt->execute(); $totalDocs = $stmt->get_result()->fetch_row()[0]; $stmt->close();
+$stmt = $conn->prepare("
+    SELECT
+        (SELECT COUNT(*) FROM documents WHERE inst_id = ?) AS total_docs,
+        COALESCE(SUM(sd.sign_sarabun IN ('pending','stamp_done')), 0) AS pending_docs,
+        COALESCE(SUM(sd.sign_sarabun='approve' AND sd.sign_codirector='approve' AND sd.sign_director='approve'), 0) AS approved_all,
+        COALESCE(SUM(sd.sign_sarabun='approve' AND sd.sign_codirector='pending'), 0) AS waiting_codir,
+        COALESCE(SUM(sd.sign_codirector='approve' AND sd.sign_director='pending'), 0) AS waiting_dir
+    FROM sign_doc sd
+    JOIN documents d ON sd.doc_id = d.doc_id
+    WHERE d.inst_id = ?
+");
+$stmt->bind_param("ii", $inst_id, $inst_id);
+$stmt->execute();
+$stats = $stmt->get_result()->fetch_assoc();
+$stmt->close();
+$totalDocs   = (int)$stats['total_docs'];
+$pendingDocs = (int)$stats['pending_docs'];
+$approvedAll = (int)$stats['approved_all'];
+$waitingCoDir = (int)$stats['waiting_codir'];
+$waitingDir  = (int)$stats['waiting_dir'];
 
-$stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_sarabun IN ('pending', 'stamp_done') AND d.inst_id = ?");
-$stmt->bind_param("i", $inst_id); $stmt->execute(); $pendingDocs = $stmt->get_result()->fetch_row()[0]; $stmt->close();
-
-$stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_sarabun='approve' AND sd.sign_codirector='approve' AND sd.sign_director='approve' AND d.inst_id = ?");
-$stmt->bind_param("i", $inst_id); $stmt->execute(); $approvedAll = $stmt->get_result()->fetch_row()[0]; $stmt->close();
-
-$stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_sarabun='approve' AND sd.sign_codirector='pending' AND d.inst_id = ?");
-$stmt->bind_param("i", $inst_id); $stmt->execute(); $waitingCoDir = $stmt->get_result()->fetch_row()[0]; $stmt->close();
-
-$stmt = $conn->prepare("SELECT COUNT(*) FROM sign_doc sd JOIN documents d ON sd.doc_id = d.doc_id WHERE sd.sign_codirector='approve' AND sd.sign_director='pending' AND d.inst_id = ?");
-$stmt->bind_param("i", $inst_id); $stmt->execute(); $waitingDir = $stmt->get_result()->fetch_row()[0]; $stmt->close();
+// สิทธิ์การมองเห็นเมนูลัด (ตรงกับเมนูใน sidebar)
+$role_id = (int)$_SESSION['role_id'];
+$canSarabun    = $role_id === 1 || is_sarabun($conn, $user_id);
+$canCoDirector = $role_id === 1 || is_codirector($conn, $user_id);
+$canDirector   = $role_id === 1 || is_director($conn, $user_id);
 
 // ────────────────────────────────────────────
 // ดึง 5 หนังสือล่าสุด
@@ -112,27 +124,35 @@ $recentDocs = $stmt->get_result();
 
   <!-- ── Quick Links ── -->
   <div class="grid grid-cols-2 lg:grid-cols-4 tablet-grid gap-4 mb-8">
+      <?php if ($role_id === 1): ?>
       <a href="doc_add.php" class="flex items-center justify-center gap-2 bg-emerald-500 hover:bg-emerald-600 text-white px-4 py-3 rounded-xl font-medium transition-colors shadow-sm">
         <i class="bi bi-plus-circle text-lg"></i> เพิ่มหนังสือใหม่
       </a>
+      <?php endif; ?>
+      <?php if ($canSarabun): ?>
       <a href="sarabun_manage.php" class="flex items-center justify-center gap-2 bg-amber-500 hover:bg-amber-600 text-white px-4 py-3 rounded-xl font-medium transition-colors shadow-sm relative">
         <i class="bi bi-inbox text-lg"></i> งานสารบรรณ
         <?php if ($pendingDocs > 0): ?>
           <span class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm ring-2 ring-white border-white"><?php echo $pendingDocs; ?></span>
         <?php endif; ?>
       </a>
+      <?php endif; ?>
+      <?php if ($canCoDirector): ?>
       <a href="codirector_manage.php" class="flex items-center justify-center gap-2 bg-sky-500 hover:bg-sky-600 text-white px-4 py-3 rounded-xl font-medium transition-colors shadow-sm relative">
         <i class="bi bi-person-fill-check text-lg"></i> รองผู้อำนวยการ
         <?php if ($waitingCoDir > 0): ?>
           <span class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-xs font-bold text-white shadow-sm ring-2 ring-white"><?php echo $waitingCoDir; ?></span>
         <?php endif; ?>
       </a>
+      <?php endif; ?>
+      <?php if ($canDirector): ?>
       <a href="director_manage.php" class="flex items-center justify-center gap-2 bg-rose-500 hover:bg-rose-600 text-white px-4 py-3 rounded-xl font-medium transition-colors shadow-sm relative">
         <i class="bi bi-award text-lg"></i> ผู้อำนวยการ
         <?php if ($waitingDir > 0): ?>
           <span class="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900 text-xs font-bold text-white shadow-sm ring-2 ring-white"><?php echo $waitingDir; ?></span>
         <?php endif; ?>
       </a>
+      <?php endif; ?>
   </div>
 
   <!-- ── Recent Documents ── -->

@@ -7,7 +7,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     $password = $_POST['password'];
 
     // ดึง user ตาม username ก่อน แล้วค่อย verify password ด้วย bcrypt
-    $sql = "SELECT u.*, i.inst_name FROM user u LEFT JOIN institution i ON u.inst_id = i.inst_id WHERE u.username = ?";
+    $sql = "SELECT u.*, i.inst_name, dep.dep_name FROM user u LEFT JOIN institution i ON u.inst_id = i.inst_id LEFT JOIN department dep ON u.dep_id = dep.dep_id WHERE u.username = ?";
     $stmt = $conn->prepare($sql);
     $stmt->bind_param("s", $username);
     $stmt->execute();
@@ -40,6 +40,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             $_SESSION['position_id']= $row['position_id'];
             $_SESSION['role_id']    = $row['role_id'];
             $_SESSION['dep_id']     = $row['dep_id'];
+            $_SESSION['dep_name']   = $row['dep_name'] ?? '';
             if ((int)$row['role_id'] === 99) {
                 header("Location: superadmin_dashboard.php");
             } else {
@@ -59,13 +60,13 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>เข้าสู่ระบบ - LoeiTech E-sign System</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600&display=swap" rel="stylesheet">
     <script>
         tailwind.config = {
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Kanit', 'sans-serif'],
+                        sans: ['Sarabun', 'sans-serif'],
                     },
                     colors: {
                         brand: {
@@ -80,7 +81,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         }
     </script>
 </head>
-<body class="bg-gray-50 flex items-center justify-center min-vh-100 min-h-screen">
+<body class="bg-gray-50 flex items-center justify-center min-h-screen">
     
     <div class="w-full max-w-md p-8 m-4 bg-white rounded-2xl shadow-xl ring-1 ring-gray-200">
         <div class="text-center mb-8">
@@ -100,27 +101,35 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
             </div>
         <?php endif; ?>
 
-        <form action="index.php" method="post" class="space-y-6">
+        <form action="index.php" method="post" class="space-y-6" id="loginForm">
             <div>
                 <label for="username" class="block text-sm font-medium text-gray-700 mb-1">ชื่อผู้ใช้งาน</label>
-                <input type="text" id="username" name="username" required 
+                <input type="text" id="username" name="username" required autocomplete="username" autofocus
                     class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
                     placeholder="กรอกชื่อผู้ใช้งาน">
             </div>
-            
+
             <div>
                 <label for="password" class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
-                <input type="password" id="password" name="password" required 
+                <input type="password" id="password" name="password" required autocomplete="current-password"
                     class="w-full px-4 py-3 rounded-lg border border-gray-300 focus:ring-2 focus:ring-brand-500 focus:border-brand-500 outline-none transition-all"
                     placeholder="กรอกรหัสผ่าน">
             </div>
 
-            <button type="submit" 
-                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-colors mt-6">
+            <button type="submit" id="loginBtn"
+                class="w-full flex justify-center items-center gap-2 py-3 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-brand-600 hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-brand-500 transition-colors mt-6 disabled:opacity-60 disabled:cursor-wait">
                 เข้าสู่ระบบ
             </button>
         </form>
     </div>
 
+    <script>
+        // ป้องกันกดซ้ำระหว่างรอเซิร์ฟเวอร์ + แสดงสถานะกำลังเข้าสู่ระบบ
+        document.getElementById('loginForm').addEventListener('submit', function () {
+            const btn = document.getElementById('loginBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<svg class="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path></svg> กำลังเข้าสู่ระบบ...';
+        });
+    </script>
 </body>
 </html>
